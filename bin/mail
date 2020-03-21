@@ -73,7 +73,7 @@ rerun() {
 }
 
 start() {
-    exe /mail.sh boot
+    exe /mail.sh start
 }
 
 restart() {
