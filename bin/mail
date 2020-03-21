@@ -1,0 +1,110 @@
+#!/bin/sh
+
+DIR=$(dirname "$(readlink -f "$0")")
+
+DOCKERDIR="$DIR/.."
+IMAGE="dal/mailserver"
+CONTAINER="dal-mailserver"
+
+RUNOPTIONS="\
+--publish 127.0.0.1:9025:25 \
+--publish 127.0.0.1:9110:110 \
+"
+
+DOVECOTINFO=/var/log/dovecot-info.log
+DOVECOTLOG=/var/log/dovecot.log
+POSTFIXLOG=/var/log/postfix.log
+USERS=/etc/mailusers
+
+clean() {
+    echo "Collecting containers"
+    CONTAINERS=$(sudo docker ps -a | awk '{ print $1,$2 }' | grep "$IMAGE" | awk '{print $1}')
+
+    if [ ! $? ]; then
+        exit 1
+    fi
+
+    echo "Killing containers"
+    echo $CONTAINERS | xargs -I {} sudo docker kill {}
+
+    echo "Removing containers"
+    echo $CONTAINERS | xargs -I {} sudo docker rm {}
+
+    if [ ! $? ]; then
+        exit 1
+    fi
+
+    echo "Removing image"
+    sudo docker rmi $IMAGE
+}
+
+build() {
+    sudo docker build --tag $IMAGE "$DOCKERDIR"
+}
+
+attach() {
+    sudo docker container attach $CONTAINER
+}
+
+run() {
+    sudo docker run $RUNOPTIONS -dti --rm --name $CONTAINER $IMAGE
+}
+
+exe() {
+    sudo docker exec $CONTAINER $@
+}
+
+dkill() {
+    sudo docker kill $CONTAINER
+}
+
+log() {
+    exe tail -F $DOVECOTINFO -F $DOVECOTLOG -F $POSTFIXLOG
+}
+
+rebuild() {
+    clean
+    build
+}
+
+rerun() {
+    rebuild
+    run
+}
+
+start() {
+    exe /mail.sh boot
+}
+
+restart() {
+    exe /mail.sh restart
+}
+
+update() {
+    sudo docker cp "$@" "$CONTAINER:$USERS"
+    exe /mail.sh update
+}
+
+xps() {
+    exe ps aux
+}
+
+case "$1" in
+    build)    build            ;;
+    rebuild)  rebuild          ;;
+    run)      run              ;;
+    rerun)    rerun            ;;
+    update)   shift; update $@ ;;
+    start)    start            ;;
+    restart)  restart          ;;
+    kill)     dkill            ;;
+    clean)    clean            ;;
+    attach)   attach           ;;
+    exec)     shift; exe $@    ;;
+    log)      log              ;;
+    ps)       xps              ;;
+    *)
+        echo "Usage: $0 <OPTION>" 1>&2
+        ;;
+esac
+
