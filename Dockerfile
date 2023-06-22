@@ -2,7 +2,7 @@ FROM alpine:3.10
 
 # install service manager, postfix and dovecot
 RUN apk update
-RUN apk add --no-cache openrc postfix postfix-pcre postfix-openrc dovecot dovecot-pop3d dovecot-openrc
+RUN apk add --no-cache openrc postfix postfix-pcre postfix-openrc dovecot dovecot-pop3d dovecot-openrc cifs-utils
 
 # create virtual mail group and user 'vmail'
 RUN deluser vmail
